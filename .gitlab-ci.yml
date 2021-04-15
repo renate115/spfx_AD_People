@@ -1,0 +1,102 @@
+image: node:10
+
+stages:
+  - setup
+  - build
+  - test
+  - deploy
+  - package
+
+npm:
+  stage: setup
+  only:
+    - branches@SharePoint/sp-dev-fx-webparts/group-people
+    - merge_requests
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /Update Changelog from CI/
+  script:
+    - npm i -g pnpm
+    - pnpm i
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+
+webpart:
+  stage: build
+  only:
+    - branches@SharePoint/sp-dev-fx-webparts/group-people
+    - merge_requests
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /Update Changelog from CI/
+  script:
+    - npm run build
+    - mv ./sharepoint/solution/group-people.sppkg ././group-people.sppkg
+  cache: 
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+    policy: pull
+  artifacts:
+    paths:
+    - group-people.sppkg
+
+coverage:
+  stage: test
+  only:
+    - branches@SharePoint/sp-dev-fx-webparts/group-people
+    - merge_requests
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /Update Changelog from CI/
+  script:
+    - npm test
+  cache: 
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+    policy: pull
+  artifacts:
+    paths:
+      - jest
+    reports:
+      cobertura: jest/cobertura-coverage.xml
+      junit:  junit.xml
+
+pages:
+  stage: deploy
+  only:
+    - master@SharePoint/sp-dev-fx-webparts/group-people
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /Update Changelog from CI/
+  script:
+    - npm run doc
+    - mkdir .public
+    - cp -r ./docs/* .public
+    - cp -r ./assets .public/
+    - mv .public public
+  cache: 
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+    policy: pull
+  artifacts:
+    paths:
+    - public
+
+changelog:
+  stage: package
+  only:
+    - master@SharePoint/sp-dev-fx-webparts/group-people
+  script:
+    - npm install -g conventional-changelog-cli && npm install -g version && apt-get install git
+    - mkdir repo && cd ./repo
+    - git clone -b $CI_COMMIT_REF_NAME https://gitlab-runner:$CI_ACCESS_TOKEN@$CI_SERVER_HOST/$CI_PROJECT_PATH.git && git init &> /dev/null
+    - cd ./$CI_PROJECT_NAME
+    - conventional-changelog -p angular -i CHANGELOG.md -s && git add CHANGELOG.md && git pull
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git commit -m 'Update Changelog from CI' && git push origin $CI_COMMIT_REF_NAME &> /dev/null
+  when: manual

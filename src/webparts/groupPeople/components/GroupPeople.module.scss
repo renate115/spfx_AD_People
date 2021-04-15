@@ -1,0 +1,74 @@
+@import '~office-ui-fabric-react/dist/sass/References.scss';
+
+.groupPeople {
+  .container {
+    @include ms-Grid;
+    padding: 0;
+  }
+
+  .row {
+    @include ms-Grid-row;
+  }
+
+  .column {
+    @include ms-Grid-col;
+    @include ms-lg12;
+    @include ms-xl12;
+  }
+
+  /**
+   * User same style than native webpart title
+   */
+  .title {
+    font-family: "Segoe UI Web (West European)","Segoe UI","-apple-system,BlinkMacSystemFont",Roboto,"Helvetica Neue",sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-size: 24px;
+    margin-bottom: 18px;
+    font-weight: 100;
+  }
+
+  /*
+   * Used to hide title
+   */
+  .hidden {
+    display: none;
+  }
+  
+  .personaTile {
+    @include ms-Grid-col;
+    @include ms-lg4;
+    @include ms-md4;
+    @include ms-sm12;
+    margin: 10px 0;
+    width: 100% !important;
+  }
+
+  .persona {
+    width: 100%;
+  }
+
+  .persona > div {
+    display: table-cell;
+    vertical-align: middle;
+  }
+
+  .persona > div .ms-Persona-secondaryText > div {
+    display: block;
+    max-width: 85%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .vertical {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+  }
+
+  .horizontal {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 10px;
+  }
+}

@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+node_modules
+
+# Build generated files
+dist
+lib
+solution
+temp
+*.sppkg
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# OSX
+.DS_Store
+
+# Windows
+thumbs.db
+
+# Visual Studio files
+.ntvs_analysis.dat
+.vs
+.vscode
+bin
+obj
+
+# Resx Generated Code
+*.resx.ts
+
+# Styles Generated Code
+*.scss.ts
+docs
+
+# Code coverage
+jest
+junit.xml
+
+# npm package-lock
+pnpm-lock.yaml
+package-lock.json
