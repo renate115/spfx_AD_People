@@ -4,6 +4,7 @@ import * as strings from 'GroupPeopleWebPartStrings';
 
 import { PictureSizes } from './models/PictureSizes';
 import { ISiteGroupInfo } from './models/ISiteGroupInfo';
+import IADGroup from './models/IADGroup';
 
 /**
  * Utils
@@ -20,6 +21,20 @@ export class Utils {
         if (grp && grp.length > 0) {
             grp.map((g: ISiteGroupInfo) => {
                 options.push({ key: g.Id, text: g.Title });
+            });
+        }
+        return options;
+    }
+    
+    /** Convert array of SharePoint AD groups into an array of DropDown options
+     * @param grp Array of SharePoint AD groups
+     * @return DropDown options of SharePoint AD groups
+     */
+    public static convertADGrpToOptions(grp: Array<IADGroup>): Array<IPropertyPaneDropdownOption> {
+        var options: Array<IPropertyPaneDropdownOption> = new Array<IPropertyPaneDropdownOption>();
+        if (grp && grp.length > 0) {
+            grp.map((g: IADGroup) => {
+                options.push({ key: g.id, text: g.displayName });
             });
         }
         return options;

@@ -18,15 +18,18 @@ import GroupPeoplePlaceHolder from './components/GroupPeoplePlaceholder';
 import { IGroupPeopleProps } from './components/IGroupPeopleProps';
 
 import SPGroupService from './services/SPGroupService';
+import GraphGroupService from './services/GraphGroupService';
 import MockSPGroupService from './mocks/MockSPGroupService';
 
 import { PersonaSize } from 'office-ui-fabric-react/lib/Persona';
-
+import IGraphGroupService from './models/IGraphGroupService'
 import PeopleCard from './models/PeopleCard';
 import ISPGroupService from './models/ISPGroupService';
 import { ISiteGroupInfo } from './models/ISiteGroupInfo';
 import { ISiteUserInfo } from './models/ISiteUserInfo';
 import { Utils } from './GroupPeopleUtils';
+import IADGroup from './models/IADGroup';
+import IADGroupPeople from './models/IADGroupPeople';
 
 export interface IGroupPeopleWebPartProps {
   SPGroups: string;
@@ -40,6 +43,7 @@ export interface IGroupPeopleWebPartProps {
   LineTwo: string;
   LineThree: string;
   NumberOfUsers: string;
+  ToggleService: boolean;
 }
 
 /** Groupe People WebPart
@@ -75,28 +79,75 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
    */
   private _grpTitle: string;
 
+  private _graphService: IGraphGroupService;
+  private _adGroup: IADGroup[];
+
   /** Init WebPart
    * @returns
    * @protected
    */
   protected onInit(): Promise<void> {
+    this._graphService = new GraphGroupService(this.context);
     this._spGrpSvc = Environment.type == EnvironmentType.Local ? new MockSPGroupService(this.context.pageContext.site.absoluteUrl) : new SPGroupService(this.context.pageContext.site.absoluteUrl);
-
+    
     if (DisplayMode.Edit == this.displayMode) { /* Get all SharePoint groups only in edit mode */
-      this._spGrpSvc.fetchSPGroups().then((spGroups: Array<ISiteGroupInfo>) => {
-        this._spSiteGrps = spGroups;
-        if (this.properties.SPGroups) {
-          this.postRender();
-        } else {
-          this.render();
-        }
-      });
+        console.log("Richen onInit Edit mode", this.properties.SPGroups);
+        this._spGrpSvc.fetchSPGroups().then((spGroups: Array<ISiteGroupInfo>) => {
+            this._spSiteGrps = spGroups;
+            if (this.properties.SPGroups) {
+                if(this._graphService.mClient) {
+                    console.log("Richen graph client is already initialized")
+                    this.postRender();
+                } else {
+                    this._graphService.initialize().then((sucess) => {
+                        console.log("Richen Graph api initialized succesfully");
+                        this.getAdGroups((res) => {
+                            this.getAdGroupUsers(this.properties.SPGroups, () => {
+                                this._grpTitle = res.find((x) => { return x.id ===  this.properties.SPGroups}).displayName;
+                                this.postRender();
+                            })
+                        });
+                    }, (err) => {
+                        console.error("Service not initialized", err);
+                    })
+                }
+            } else {
+                if(this._graphService.mClient) {
+                    console.log("Richen graph client is already initialized")
+                    this.render();
+                } else {
+                    console.log("Richen graph client is not initialized")
+                    this._graphService.initialize().then((sucess) => {
+                        console.log("Richen Graph api initialized succesfully");
+                        this.render();
+                    }, (err) => {
+                        console.error("Service not initialized", err);
+                    })
+                }
+            }
+        });
     } 
     if (DisplayMode.Read == this.displayMode && this.properties.SPGroups) {
-      this._spGrpSvc.getSPGroup(parseInt(this.properties.SPGroups)).then((grp: ISiteGroupInfo) => {
-        this._grpTitle = grp.Title;
-        this.postRender();
-      });
+      console.log("Richen onInit Read mode", this.properties.SPGroups);
+        this._graphService.initialize().then((sucess) => {
+            console.log("Richen Graph api initialized succesfully");
+            if(this.properties.ToggleService) {
+                this.getAdGroups((res) => {
+                    console.log("Richen Graph Groups api called succesfully", res);
+                    this.getAdGroupUsers(this.properties.SPGroups, () => {
+                        this._grpTitle = res.find((x) => { return x.id ===  this.properties.SPGroups}).displayName;
+                        this.postRender();
+                    })
+                })
+            } else {
+                this._spGrpSvc.getSPGroup(parseInt(this.properties.SPGroups)).then((grp: ISiteGroupInfo) => {
+                    this._grpTitle = grp.Title;
+                    this.postRender();
+                });
+            }
+        }, (err) => {
+            console.error("Service not initialized", err);
+        })
     }
     return super.onInit();
   }
@@ -109,7 +160,20 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
       const element: React.ReactElement<GroupPeoplePlaceHolder> = React.createElement(GroupPeoplePlaceHolder);
       ReactDom.render(element, this.domElement);
     } else if (!this._partialUpdateRender && this.properties.SPGroups) {
-      this.getUsersGroup();
+      if(this.properties.ToggleService) {
+          console.log("Richen render initializing service this.properties -->", this.properties);
+          console.log("Richen is groupdata is available", this._adGroup);
+          if(typeof this.properties.SPGroups == 'string') {
+              this.getAdGroupUsers(this.properties.SPGroups, () => {})
+          } else {
+              console.log("Richen Type is number");
+              this.getAdGroups((res) => {
+                  console.log("Richen Group fetched");
+              })
+          }
+      } else {
+        this.getUsersGroup();
+      }
     }
     this._partialUpdateRender = false;
   }
@@ -119,7 +183,6 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
         return parseInt(this.properties.NumberOfUsers)
     } else {
         // setting Defult to properties value
-        console.log("Richen getNumber", "setting Defult to properties value");
         this.properties.NumberOfUsers = 8+'';
         return 8
     }
@@ -130,7 +193,12 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
    */
   private postRender() {
     if ((this._spGrpUsers && this._spGrpUsers.length > 0) || (this._spGrpUsers && this._spGrpUsers.length == 0 && (undefined == this.properties.HideWebPart || false == this.properties.HideWebPart || DisplayMode.Edit == this.displayMode))) {
-      this._grpTitle = this._grpTitle ? this._grpTitle : (undefined !== this.properties.SPGroups && null != this._spSiteGrps) ? this._spSiteGrps.find(g => g.Id == parseInt(this.properties.SPGroups)).Title : '';
+        if(this.properties.ToggleService) {
+            this._grpTitle = this._grpTitle ? this._grpTitle : (undefined !== this.properties.SPGroups && null != this._adGroup) ? this._adGroup.find(g => g.id == this.properties.SPGroups).displayName : '';
+        } else {
+            this._grpTitle = this._grpTitle ? this._grpTitle : (undefined !== this.properties.SPGroups && null != this._spSiteGrps) ? this._spSiteGrps.find(g => g.Id == parseInt(this.properties.SPGroups)).Title : '';
+        }
+      console.log("Richen inside postRender setting title", this._grpTitle)
       console.log("Richen postRender", this.properties);
       const num =  this.getNumber();
       const element: React.ReactElement<IGroupPeopleProps> = React.createElement(GroupPeople, {
@@ -162,6 +230,30 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
       }
     });
   }
+
+    private getAdGroups(callback) {
+        this._graphService.getADGroups().then((res: IADGroup[]) => {
+            console.log("Graph group called success", res)
+            this._adGroup = res;
+            callback(res);
+            console.log("Richen", this.properties.SPGroups);
+        }, (err) => {
+            console.log("Graph group error", err)
+        })
+    }
+
+    private getAdGroupUsers(id: string, callback) {
+        this._graphService.getADGroupPeoples(id).then((res) => {
+            this._spGrpUsers = new Array();
+            res.forEach((item: IADGroupPeople) => {
+                this._spGrpUsers.push(new PeopleCard(item.mail, '', item.displayName, item.jobTitle))
+            })
+            console.log("Richen", this._spGrpUsers);
+            callback();
+        }, (err) => {
+            console.error('Error in fetching user', err);
+        })
+    }
 
   /**
    * Get the user profiles and populate the list of People Cards
@@ -211,8 +303,10 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
    * @param newValue 
    * @protected
    */
-  protected onPropertyPaneFieldChanged(targetProperty: string, newValue: any) {
-    console.log("Richen onPropertyPaneFieldChanged", targetProperty);
+  protected onPropertyPaneFieldChanged(targetProperty: string, oldValue: any, newValue: any) {
+    console.log("Richen onPropertyPaneFieldChanged targetProperty", targetProperty);
+    console.log("Richen onPropertyPaneFieldChanged oldValue", oldValue);
+    console.log("Richen onPropertyPaneFieldChanged newValue", newValue);
     if ('CustomTitle' == targetProperty || 'ToggleTitle' == targetProperty) {
       this._partialUpdateRender = true;
       this.postRender();
@@ -222,6 +316,26 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
     } else if ('NumberOfUsers' == targetProperty) {
       this._partialUpdateRender = true;
       this.postRender();
+    } else if ('ToggleService' == targetProperty) {
+        if(oldValue !== newValue && newValue) {
+            this.getAdGroups((result) => {
+                console.log("Richen Group data after toogle change");
+                this._partialUpdateRender = true;
+                this.postRender();
+            })
+        } else {
+            this._partialUpdateRender = true;
+            this.postRender();
+        }
+    } else if ('SPGroups' == targetProperty) {
+      if ( oldValue !== newValue ) {
+        console.log("Richen SPGroups change oldValue", oldValue )
+        console.log("Richen SPGroups change newValue", newValue )
+        this.getAdGroupUsers(newValue, () => {
+            this._partialUpdateRender = true;
+            this.postRender();
+        })
+      }
     }
   }
 
@@ -240,9 +354,17 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
           groups: [
             {
               groupFields: [
+                PropertyPaneToggle('ToggleService', {
+                  label: strings.ToggleServiceLabel,
+                  offText: strings.ToggleServiceOffText,
+                  onText: strings.ToggleServiceOnText,
+                }),
                 PropertyPaneDropdown('SPGroups', {
-                  label: strings.DropdownGroupLabel,
-                  options: Utils.convertGrpToOptions(this._spSiteGrps)
+                  label: (!this.properties.ToggleService) ? strings.DropdownGroupLabel : strings.DropdownADGroupLabel,
+                  options: (!this.properties.ToggleService) ? Utils.convertGrpToOptions(this._spSiteGrps) : Utils.convertADGrpToOptions(this._adGroup)
+                }),
+                PropertyPaneLabel('LabelSeparator', {
+                  text: ' '
                 }),
                 PropertyPaneToggle('ToggleTitle', {
                   label: strings.ToggleTitleLabel

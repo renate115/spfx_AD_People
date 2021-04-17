@@ -3,12 +3,16 @@ declare interface IGroupPeopleWebPartStrings {
   PlaceHolderText: string;
   PropertyPaneDescription: string;
   DropdownGroupLabel: string;
+  DropdownADGroupLabel: string;
   FieldsGroupLabel: string;
   CustomTitleLabel: string;
   CustomTitleDescription: string;
   NumberOfUsersLabel: string;
   NumberOfUsersDescription: string;
   ToggleTitleLabel: string;
+  ToggleServiceLabel: string;
+  ToggleServiceOnText: string;
+  ToggleServiceOffText: string;
   PictureSize: string;
   HideWebPart: string;
   NoItemFound: string;
