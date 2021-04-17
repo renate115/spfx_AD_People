@@ -91,16 +91,13 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
     this._spGrpSvc = Environment.type == EnvironmentType.Local ? new MockSPGroupService(this.context.pageContext.site.absoluteUrl) : new SPGroupService(this.context.pageContext.site.absoluteUrl);
     
     if (DisplayMode.Edit == this.displayMode) { /* Get all SharePoint groups only in edit mode */
-        console.log("Richen onInit Edit mode", this.properties.SPGroups);
         this._spGrpSvc.fetchSPGroups().then((spGroups: Array<ISiteGroupInfo>) => {
             this._spSiteGrps = spGroups;
             if (this.properties.SPGroups) {
                 if(this._graphService.mClient) {
-                    console.log("Richen graph client is already initialized")
                     this.postRender();
                 } else {
                     this._graphService.initialize().then((sucess) => {
-                        console.log("Richen Graph api initialized succesfully");
                         this.getAdGroups((res) => {
                             this.getAdGroupUsers(this.properties.SPGroups, () => {
                                 this._grpTitle = res.find((x) => { return x.id ===  this.properties.SPGroups}).displayName;
@@ -113,12 +110,9 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
                 }
             } else {
                 if(this._graphService.mClient) {
-                    console.log("Richen graph client is already initialized")
                     this.render();
                 } else {
-                    console.log("Richen graph client is not initialized")
                     this._graphService.initialize().then((sucess) => {
-                        console.log("Richen Graph api initialized succesfully");
                         this.render();
                     }, (err) => {
                         console.error("Service not initialized", err);
@@ -128,12 +122,9 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
         });
     } 
     if (DisplayMode.Read == this.displayMode && this.properties.SPGroups) {
-      console.log("Richen onInit Read mode", this.properties.SPGroups);
         this._graphService.initialize().then((sucess) => {
-            console.log("Richen Graph api initialized succesfully");
             if(this.properties.ToggleService) {
                 this.getAdGroups((res) => {
-                    console.log("Richen Graph Groups api called succesfully", res);
                     this.getAdGroupUsers(this.properties.SPGroups, () => {
                         this._grpTitle = res.find((x) => { return x.id ===  this.properties.SPGroups}).displayName;
                         this.postRender();
@@ -161,15 +152,10 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
       ReactDom.render(element, this.domElement);
     } else if (!this._partialUpdateRender && this.properties.SPGroups) {
       if(this.properties.ToggleService) {
-          console.log("Richen render initializing service this.properties -->", this.properties);
-          console.log("Richen is groupdata is available", this._adGroup);
           if(typeof this.properties.SPGroups == 'string') {
               this.getAdGroupUsers(this.properties.SPGroups, () => {})
           } else {
-              console.log("Richen Type is number");
-              this.getAdGroups((res) => {
-                  console.log("Richen Group fetched");
-              })
+              this.getAdGroups((res) => {})
           }
       } else {
         this.getUsersGroup();
@@ -198,8 +184,6 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
         } else {
             this._grpTitle = this._grpTitle ? this._grpTitle : (undefined !== this.properties.SPGroups && null != this._spSiteGrps) ? this._spSiteGrps.find(g => g.Id == parseInt(this.properties.SPGroups)).Title : '';
         }
-      console.log("Richen inside postRender setting title", this._grpTitle)
-      console.log("Richen postRender", this.properties);
       const num =  this.getNumber();
       const element: React.ReactElement<IGroupPeopleProps> = React.createElement(GroupPeople, {
         title: (this.properties.CustomTitle && this.properties.CustomTitle.length > 0) ? this.properties.CustomTitle : this._grpTitle,
@@ -233,10 +217,8 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
 
     private getAdGroups(callback) {
         this._graphService.getADGroups().then((res: IADGroup[]) => {
-            console.log("Graph group called success", res)
             this._adGroup = res;
             callback(res);
-            console.log("Richen", this.properties.SPGroups);
         }, (err) => {
             console.log("Graph group error", err)
         })
@@ -248,7 +230,6 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
             res.forEach((item: IADGroupPeople) => {
                 this._spGrpUsers.push(new PeopleCard(item.mail, '', item.displayName, item.jobTitle))
             })
-            console.log("Richen", this._spGrpUsers);
             callback();
         }, (err) => {
             console.error('Error in fetching user', err);
@@ -304,9 +285,6 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
    * @protected
    */
   protected onPropertyPaneFieldChanged(targetProperty: string, oldValue: any, newValue: any) {
-    console.log("Richen onPropertyPaneFieldChanged targetProperty", targetProperty);
-    console.log("Richen onPropertyPaneFieldChanged oldValue", oldValue);
-    console.log("Richen onPropertyPaneFieldChanged newValue", newValue);
     if ('CustomTitle' == targetProperty || 'ToggleTitle' == targetProperty) {
       this._partialUpdateRender = true;
       this.postRender();
@@ -319,7 +297,6 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
     } else if ('ToggleService' == targetProperty) {
         if(oldValue !== newValue && newValue) {
             this.getAdGroups((result) => {
-                console.log("Richen Group data after toogle change");
                 this._partialUpdateRender = true;
                 this.postRender();
             })
@@ -329,8 +306,6 @@ export default class GroupPeopleWebPart extends BaseClientSideWebPart<IGroupPeop
         }
     } else if ('SPGroups' == targetProperty) {
       if ( oldValue !== newValue ) {
-        console.log("Richen SPGroups change oldValue", oldValue )
-        console.log("Richen SPGroups change newValue", newValue )
         this.getAdGroupUsers(newValue, () => {
             this._partialUpdateRender = true;
             this.postRender();
